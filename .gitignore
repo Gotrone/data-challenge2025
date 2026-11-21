@@ -1,0 +1,6 @@
+.ipynb_checkpoints/
+__pycache__/
+.venv/
+venv/
+# regenerable (cellule "Generate Trainning Dataset for GNN")
+results/generated_graphs.json
