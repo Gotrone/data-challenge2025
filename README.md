@@ -2,94 +2,125 @@
 
 Projet réalisé en équipe pendant le Data Challenge IA Pau (sujet proposé par Alstom) : **simuler des pannes sur le réseau de métro parisien et repérer les inter-stations les plus critiques**.
 
+Stack : Python, pandas, networkx, matplotlib, Jupyter.
+
+## Sommaire
+
+- [Le sujet](#le-sujet)
+- [Démarche](#démarche)
+- [Résultats](#résultats)
+- [Installation et utilisation](#installation-et-utilisation)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Corrections apportées](#corrections-apportées)
+- [Limites](#limites)
+- [Pistes d'amélioration](#pistes-damélioration)
+
 ## Le sujet
 
-Étant donné :
+À partir de :
 
-- le plan du métro (liaisons entre stations),
-- les positions GPS des stations,
-- un fichier de flux de passagers (`de` → `vers`, `nombre`),
+- le plan du métro (`plan_du_metro.csv`),
+- les positions GPS des stations (`position_gps_des_stations_de_metro.csv`),
+- un fichier de flux de passagers (`passagers.csv` : 93 942 trajets `de` → `vers`, 468 804 passagers au total),
 
 on cherche à :
 
-1. prévoir le flux de passagers sur le réseau (chemin le plus court pour chaque trajet) ;
-2. simuler la suppression de certaines inter-stations et mesurer l'impact sur les flux et les distances parcourues ;
-3. identifier les liaisons les plus critiques.
+1. estimer le flux de passagers sur chaque liaison et chaque station (chemin le plus court pour chaque trajet) ;
+2. simuler la suppression d'inter-stations et mesurer l'effet sur les flux et les distances parcourues ;
+3. identifier les inter-stations les plus critiques.
 
-## Ce que fait le projet
+## Démarche
 
-Tout est dans le notebook `Main.ipynb` :
+Tout est dans `Main.ipynb`.
 
-1. **Chargement et nettoyage** des données (doublons de stations, parsing des coordonnées GPS).
-2. **Modélisation du réseau** avec `networkx` : une station = un nœud, une liaison = une arête (307 nœuds, 377 arêtes). Distance fixe = 1 par défaut, ou distance haversine réelle (paramètre `USE_FIXED_DISTANCE`).
-3. **Calcul des flux** : pour chaque couple (départ, arrivée), plus court chemin (Dijkstra), puis cumul des passagers sur chaque arête et chaque station. Option de pondération (`USE_PASSENGER_PONDERATION`) pour répartir un passager sur les éléments de son trajet.
-4. **Points les plus chargés** : export dans `results/Overload_edges.csv` et `results/Overload_nodes.csv`.
-5. **Arêtes contournables** : arêtes dont la suppression ne déconnecte pas le graphe (donc qui ne sont pas des ponts).
-6. **Dégradation du réseau** : suppression aléatoire d'arêtes contournables, puis comparaison avec le réseau d'origine (écart de flux sur les arêtes et stations, écart de distance moyenne).
-7. **Classement des inter-stations critiques** (suppression d'une arête à la fois).
-8. **Cas réel** : application de la liste `data/interstations_supprimees.csv` et visualisation des flux sur le réseau dégradé.
-9. **Génération de graphes dégradés** (`generated_graphs` + `node_ids.csv`) prévus comme jeu d'entraînement pour un GNN.
+1. **Chargement et nettoyage** : doublons de stations, lecture des coordonnées GPS.
+2. **Graphe** (`networkx`) : une station = un nœud, une liaison = une arête. On obtient 307 nœuds et 377 arêtes. La distance vaut 1 par arête par défaut, ou la distance haversine réelle (`USE_FIXED_DISTANCE`).
+3. **Flux** : pour chaque trajet, plus court chemin (Dijkstra), puis cumul des passagers sur les arêtes et les stations. Une option (`USE_PASSENGER_PONDERATION`) répartit un passager sur les éléments de son trajet.
+4. **Points les plus chargés** : export vers `results/Overload_edges.csv` et `results/Overload_nodes.csv`.
+5. **Arêtes contournables** : arêtes dont la suppression ne déconnecte pas le graphe (ce ne sont pas des ponts). Il y en a 368 sur 377.
+6. **Dégradation** : suppression d'une arête contournable à la fois, pour les 368 arêtes, puis comparaison avec le réseau d'origine (écart de flux sur les arêtes et les stations, écart de distance moyenne). Le classement est exporté dans `results/critical_intersections.csv`.
+7. **Cas réel** : application de `data/interstations_supprimees.csv` et affichage des flux sur le réseau dégradé.
+8. **Jeu d'entraînement pour un GNN** : génération de graphes dégradés aléatoires avec leurs chemins optimaux, et de `results/node_ids.csv`.
 
-## Quelques résultats
+## Résultats
 
-Sur le réseau complet (distance fixe, sans pondération) :
+Réseau complet (distance fixe, sans pondération) :
 
 - distance moyenne par passager : environ 10,4 inter-stations ;
-- liaisons les plus chargées : Châtelet → Gare de Lyon, Châtelet → Pyramides, Gare de Lyon → Reuilly-Diderot ;
-- stations les plus chargées : Châtelet, Gare de Lyon, Saint-Lazare, Nation, Madeleine.
+- liaisons les plus chargées : Châtelet – Gare de Lyon (≈ 74 000 passagers), Gare de Lyon – Reuilly-Diderot, Châtelet – Pyramides ;
+- stations les plus chargées : Châtelet (≈ 243 000), Gare de Lyon, Saint-Lazare, Nation, Madeleine.
 
-Sur le cas réel (10 lignes dans `interstations_supprimees.csv`), 8 arêtes sont réellement supprimées. La ligne Saint-Marcel → Gare d'Austerlitz est le doublon inversé d'une autre ligne (déjà supprimée), et Guy Môquet – Porte de Saint-Ouen n'est pas contournable, donc le code l'ignore. Après suppression, Concorde → Madeleine passe de la 5e à la 3e liaison la plus chargée.
+Les 5 inter-stations dont la suppression augmente le plus la distance moyenne (sur les 368 testées) :
+
+| Inter-station supprimée | Hausse de la distance moyenne |
+|---|---|
+| Daumesnil – Michel Bizot | 7,0 % |
+| Michel Bizot – Porte Dorée | 5,8 % |
+| Porte de Charenton – Porte Dorée | 4,7 % |
+| Buzenval – Nation | 4,2 % |
+| Liberté – Porte de Charenton | 3,8 % |
+
+Ces liaisons sont à l'est de Paris (branche de Charenton de la ligne 8, ligne 9 près de Nation). Elles sont contournables, mais seulement par de longs détours dans le graphe.
+
+Cas réel : sur les 10 lignes de `interstations_supprimees.csv`, 8 arêtes sont supprimées. Saint-Marcel → Gare d'Austerlitz est le doublon inversé d'une autre ligne, et Guy Môquet – Porte de Saint-Ouen n'est pas contournable (le code l'ignore). Après suppression, Concorde – Madeleine passe de la 5e à la 3e liaison la plus chargée.
 
 ## Installation et utilisation
 
 ```bash
 git clone https://github.com/Gotrone/data-challenge2025.git
 cd data-challenge2025
+python -m venv .venv
+.venv\Scripts\activate        # Linux / macOS : source .venv/bin/activate
 pip install -r requirements.txt
 jupyter notebook Main.ipynb
 ```
 
-Le notebook se lance depuis la racine du dépôt (les chemins sont `data/` et `results/`). Les graines aléatoires sont fixées (`SEED = 42`) pour retrouver les mêmes résultats.
+- Lancer le notebook **depuis la racine du dépôt** (les chemins sont `data/` et `results/`).
+- Durée d'exécution complète : environ 5 minutes (l'essentiel est l'analyse des 368 graphes dégradés).
+- Les graines aléatoires sont fixées (`SEED = 42`).
+- La cellule de génération du jeu GNN écrit `results/generated_graphs.json` (ignoré par git, car regénérable).
 
-## Structure
+## Structure du dépôt
 
 ```
 .
-├── Main.ipynb          # analyse complète
+├── Main.ipynb          # analyse complète (avec les sorties)
 ├── data/               # données d'entrée (CSV)
-├── results/            # fichiers générés par le notebook
+├── results/            # fichiers produits par le notebook
 ├── requirements.txt
 └── README.md
 ```
 
-## Corrections faites par rapport à la version du challenge
+## Corrections apportées
 
-- **Dernière section** : le code lisait `position_gps_des_stations_de_metro.csv` à la place du plan du métro, ce qui donnait `KeyError: 'vers Station'`. Le graphe est maintenant construit depuis `plan_du_metro.csv`, et il n'est plus reconstruit juste après les suppressions (ce qui les annulait).
-- **Flux sur les arêtes** : le graphe est non orienté mais les flux étaient stockés dans le sens du trajet, donc A→B et B→A étaient comptés séparément et mal retrouvés à l'affichage. Les clés sont maintenant triées.
-- **Arêtes contournables** : remplacement de « copie du graphe + `has_path` pour chaque arête » par `nx.bridges`, même résultat, bien plus rapide.
-- Reproductibilité (graine), chemins de fichiers, encodage UTF-8, `print` mal formaté dans `degrade_plan`, paramètre `use_passenger_ponderation` ignoré dans `analyze_degraded_graphs`.
+Par rapport à la version rendue pendant le challenge :
+
+- **Dernière section** : le code lisait le fichier GPS au lieu du plan du métro (`KeyError: 'vers Station'`). Le graphe est maintenant construit depuis `plan_du_metro.csv`, et il n'est plus reconstruit juste après les suppressions (ce qui les annulait).
+- **Flux sur les arêtes** : le graphe est non orienté, mais les flux étaient stockés dans le sens du trajet, donc A→B et B→A étaient comptés à part et mal retrouvés à l'affichage. Les clés sont maintenant triées.
+- **Vitesse** : un seul Dijkstra par station de départ (au lieu d'un par trajet) et `nx.bridges` pour les arêtes contournables. Cela permet d'analyser les 368 arêtes au lieu de 10.
+- Divers : graine aléatoire, chemins de fichiers, encodage UTF-8, `print` mal formaté dans `degrade_plan`, paramètre `use_passenger_ponderation` ignoré dans `analyze_degraded_graphs`.
 
 ## Limites
 
-- **Le classement des inter-stations critiques ne porte que sur 10 arêtes** (`max_graphs=10` dans `analyze_degraded_graphs`, pour que le calcul reste court), prises dans l'ordre du graphe. Ce n'est donc pas un vrai classement des 368 arêtes contournables.
-- **Distance = nombre d'inter-stations** par défaut. On ne tient pas compte des temps de trajet réels, des correspondances (longueur à pied), de la fréquence des rames ni de la capacité des lignes.
-- **Un seul chemin le plus court par trajet** : tous les passagers d'un même trajet prennent le même chemin. En réalité, ils se répartissent et la congestion change les choix. Les flux sont donc probablement surestimés sur certaines liaisons.
-- **Pas de modèle de capacité** : on mesure des flux, pas de saturation.
+- **Distance = nombre d'inter-stations** par défaut. On ne tient compte ni des temps de trajet, ni des correspondances (marche), ni de la fréquence des rames, ni de la capacité des lignes.
+- **Un seul chemin le plus court par trajet.** Beaucoup de chemins sont à égalité avec une distance fixe, et le choix est arbitraire. Les flux dépendent donc un peu de ce choix, et ils sont probablement surestimés sur certaines liaisons : en vrai, les passagers se répartissent.
+- **Pas de modèle de capacité ni de congestion** : on mesure des flux, pas une saturation.
 - Le graphe est **non orienté** et fusionne les lignes : on ne distingue pas une ligne d'une autre.
-- Les mesures d'écart en pourcentage sont très grandes pour les arêtes à faible flux initial (écart maximum de plus de 2000 %) ; la moyenne est à lire avec précaution.
-- Les stations sans position GPS n'ont pas de coordonnées, donc `USE_POSITIONS=True` en ignore certaines.
-- **La partie GNN n'est pas dans ce dépôt** : le modèle (226 Mo) n'a pas pu être récupéré et le code associé ne tournait plus. Seule la génération du jeu de données (graphes dégradés + chemins optimaux) est conservée.
-- L'impact énergétique (partie Green AI du challenge, plateforme GAIA) n'est pas inclus.
+- Les écarts en pourcentage sont très grands pour les arêtes à faible flux initial (plus de 2000 % au maximum) ; la moyenne est à lire avec précaution.
+- Une seule arête supprimée à la fois : on ne voit pas les effets cumulés de pannes simultanées.
+- Avec `USE_POSITIONS=True`, les stations sans coordonnées GPS sont ignorées.
+- **La partie GNN n'est pas dans ce dépôt** : le modèle (226 Mo) n'a pas pu être récupéré et le code associé ne tournait plus. Seule la génération du jeu de données est conservée.
+- L'impact énergétique (Green AI, plateforme GAIA) n'est pas inclus.
+- Pas de tests automatiques : les résultats ont été vérifiés en relançant le notebook et en relisant les sorties.
 
 ## Pistes d'amélioration
 
-- Analyser **toutes** les arêtes contournables, en mettant en cache les plus courts chemins (ou en les recalculant seulement pour les trajets touchés).
-- Passer à des **distances ou temps réels** (haversine, temps inter-stations, pénalité de correspondance).
-- **Répartir les passagers** sur plusieurs chemins proches (k plus courts chemins) et itérer avec un modèle de congestion.
-- Ajouter des **capacités** par ligne et mesurer la saturation, pas seulement le flux.
-- Supprimer **plusieurs arêtes** à la fois (approche itérative évoquée dans le notebook) et tester les suppressions de stations.
+- Passer à des **temps réels** : temps inter-stations, pénalité de correspondance.
+- **Répartir les passagers** sur plusieurs chemins proches (k plus courts chemins), puis itérer avec un modèle de congestion.
+- Ajouter des **capacités** par ligne et mesurer la saturation.
+- Supprimer **plusieurs arêtes** à la fois (approche itérative notée dans le notebook) et tester des suppressions de stations.
 - Reprendre le **GNN** (prédire si un nœud est sur le plus court chemin) et le comparer à Dijkstra en précision et en temps de calcul.
-- Séparer le code du notebook dans un module Python (`src/`) et ajouter quelques tests.
+- Sortir le code du notebook dans un module Python (`src/`) et ajouter quelques tests.
 
 ## Données
 
