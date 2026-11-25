@@ -65,6 +65,10 @@ Top 5 inter-stations whose removal increases the average travel distance the mos
 | Buzenval – Nation | 4.2 % |
 | Liberté – Porte de Charenton | 3.8 % |
 
+![Top 10 most loaded connections](images/top_flows.png)
+
+![Top 10 critical inter-stations](images/critical_interstations.png)
+
 These connections are in the east of Paris (Charenton branch of line 8, line 9 near Nation). They are bypassable, but only through long detours in the graph.
 
 Real case: `removed_interstations.csv` has 10 rows and 8 edges are actually removed. The row Saint-Marcel → Gare d'Austerlitz is the reversed duplicate of another row, and Guy Môquet – Porte de Saint-Ouen is not bypassable (the code skips it). After the removal, Concorde – Madeleine moves from the 5th to the 3rd most loaded connection.
@@ -92,6 +96,8 @@ jupyter notebook Main.ipynb
 ├── Main.ipynb          # full analysis (with outputs)
 ├── data/               # input CSV files
 ├── results/            # files produced by the notebook
+├── scripts/            # make_figures.py: regenerates the images below
+├── images/             # figures used in this README
 ├── requirements.txt
 └── README.md
 ```
@@ -111,6 +117,7 @@ jupyter notebook Main.ipynb
 - The graph is **undirected** and merges all lines: lines are not distinguished.
 - Percentage differences are very large for edges with a low initial flow (more than 2,000 % at most), so averages should be read with care.
 - Only one edge is removed at a time: the cumulative effect of simultaneous failures is not captured.
+- The GPS file has inconsistent coordinates for some stations (for example Malesherbes), so the README shows bar charts and no geographic map.
 - With `USE_POSITIONS=True`, stations without GPS coordinates are ignored.
 - **The GNN part is not in this repository**: the trained model (226 MB) could not be recovered and the related code no longer ran. Only the dataset generation is kept.
 - Energy impact (Green AI part of the challenge, GAIA platform) is not included.
