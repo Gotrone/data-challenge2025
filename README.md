@@ -67,8 +67,8 @@ Real case: `removed_interstations.csv` has 10 rows and 8 edges are actually remo
 ## Setup and usage
 
 ```bash
-git clone https://github.com/Gotrone/data-challenge2025.git
-cd data-challenge2025
+git clone https://github.com/Gotrone/paris-metro-resilience.git
+cd paris-metro-resilience
 python -m venv .venv
 .venv\Scripts\activate        # Linux / macOS: source .venv/bin/activate
 pip install -r requirements.txt
