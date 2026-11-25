@@ -6,6 +6,7 @@ Stack: Python, pandas, networkx, matplotlib, Jupyter.
 
 ## Table of contents
 
+- [Contributions](#contributions)
 - [Problem](#problem)
 - [Approach](#approach)
 - [Results](#results)
@@ -14,6 +15,10 @@ Stack: Python, pandas, networkx, matplotlib, Jupyter.
 - [Fixes since the challenge version](#fixes-since-the-challenge-version)
 - [Limitations](#limitations)
 - [Possible improvements](#possible-improvements)
+
+## Contributions
+
+Group project from the IA Pau Data Challenge: the team worked on it together and shared the work. This repository is my own clean version of the challenge code. I rewrote the analysis, translated it to English, fixed the bugs listed below and analysed all 368 bypassable edges.
 
 ## Problem
 
